@@ -1,0 +1,71 @@
+extends ../layout
+
+block content
+    script(src="http://code.jquery.com/jquery-1.6.2.min.js")
+    script(src="http://www.appelsiini.net/download/jquery.jeditable.mini.js")
+    script(src="javascripts/dropzone.js")
+    script.
+        Dropzone.options.myDropzone = {
+
+            // Prevents Dropzone from uploading dropped files immediately
+            autoProcessQueue: true,
+            parallelUploads: 1,
+            uploadMultiple: false,
+            maxFiles: 1,
+
+            init: function() {
+                var submitButton = document.querySelector("#submit-all")
+                myDropzone = this; // closure
+
+                submitButton.addEventListener("click", function() {
+                    myDropzone.processQueue(); // Tell Dropzone to process all queued files.
+            });
+
+            // You might want to show the submit button only when
+            // files are dropped here:
+            this.on("addedfile", function() {
+            // Show submit button here and/or inform user to click it.
+            });
+
+            }
+        };
+
+        $(document).ready(function() {
+            $('.edit_device_description').editable('/admin/device_edit', {
+                name : 'description'
+            });
+
+            $('.edit_device_tags').editable('/admin/device_edit', {
+                name: 'tags'
+            });
+
+            /*var dropzone = new Dropzone(".dropzone");
+            dropzone.on("addedfile", function (file) {
+            });*/
+        });
+    h1.
+        #{title}
+    table
+        - each device, i in devices
+            tr
+                td
+                    a(href="/admin/#{device._id}/assign") +
+                td(class='edit_device_description', id='#{device._id}') #{device.description}
+                td(class='edit_device_tags', id='#{device._id}') #{device.tags}
+                td #{device.lastSeen}
+                td #{device.balance}
+        tr
+            form#formAddBlob(name="adddevice",method="post",action="/admin/new_device")
+                td
+                td
+                    input(type="text", name="description")
+                td
+                    input(type="text", name="tags")
+                td
+                    input(type="text", name="serial")
+
+                td
+                    button#btnSubmit(type="submit") add
+
+    form(action="/admin/upload",class="dropzone" id="my-dropzone")
+    button(id="submit-all") Submit all files

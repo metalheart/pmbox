@@ -6,7 +6,11 @@ var express = require('express'),
     mongoose = require('mongoose'), //mongo connection
     db = require('../model/db'),
     bodyParser = require('body-parser'), //parses information from POST
-    methodOverride = require('method-override'); //used to manipulate POST
+    methodOverride = require('method-override'), //used to manipulate POST
+    fileUpload = require('express-fileupload'),
+    path = require('path');
+
+router.use(fileUpload());
 
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(methodOverride(function(req, res){
@@ -20,31 +24,130 @@ router.use(methodOverride(function(req, res){
 
 router.route('/')
     .get(function(req, res, next) {
+        /*
+        mongoose.model('Device').create({
+            description: 'device for test',
+            tags:'test',
+            serial: '12345'
+        });*/
+
         //retrieve all blobs from Monogo
-        mongoose.model('TaskSchedule').find({})
-            .populate('device')
-            .exec(function (err, tasks) {
+        mongoose.model('Device').find({})
+            .exec(function (err, devices) {
+                if (err) {
+                    return console.error(err);
+                } else {
+                    //respond to both HTML and JSON. JSON responses require 'Accept: application/json;' in the Request Header
+                    res.format({
+                        //HTML response will render the index.jade file in the views/blobs folder. We are also setting "blobs" to be an accessible variable in our jade view
+                        html: function(){
+                            res.render('admin/index', {
+                                title: 'All my tasks',
+                                "devices" : devices
+                            });
+                        },
+                        //JSON response will show all blobs in JSON format
+                        json: function(){
+                            res.json(devices);
+                        }
+                    });
+                }
+        });
+    });
+
+router.route('/new_device')
+    .post(function(req, res) {
+        // Get values from POST request. These can be done through forms or REST calls. These rely on the "name" attributes for forms
+        var description = req.body.description;
+        var sn = req.body.serial;
+        var taglist = req.body.tags;
+
+        mongoose.model('Device').create({
+            serial: sn,
+            description: description,
+            tags: taglist
+        }, function (err, device) {
             if (err) {
-                return console.error(err);
+                res.send("There was a problem adding the information to the database.");
             } else {
-                //respond to both HTML and JSON. JSON responses require 'Accept: application/json;' in the Request Header
+                //Blob has been created
+                console.log('POST creating new device: ' + device);
                 res.format({
-                    //HTML response will render the index.jade file in the views/blobs folder. We are also setting "blobs" to be an accessible variable in our jade view
+                    //HTML response will set the location and redirect back to the home page. You could also create a 'success' page if that's your thing
                     html: function(){
-                        res.render('admin/tasks', {
-                            title: 'All my tasks',
-                            "tasks" : tasks
-                        });
+                        // If it worked, set the header so the address bar doesn't still say /adduser
+                        res.location("admin");
+                        // And forward to success page
+                        res.redirect("/admin");
                     },
-                    //JSON response will show all blobs in JSON format
+                    //JSON response will show the newly created blob
                     json: function(){
-                        res.json(infophotos);
+                        res.json(device);
+                    }
+                });
+            }
+        })
+    });
+
+router.route('/upload')
+    .post(function(req, res) {
+        var sampleFile;
+
+        if (!req.files) {
+            res.send('No files were uploaded.');
+            return;
+        }
+
+        sampleFile = req.files.file;
+
+        sampleFile.mv(path.join(__dirname, '../public/media/') + sampleFile.name, function(err) {
+            if (err) {
+                res.status(500).send(err);
+            }
+            else {
+                var content = mongoose.model('Content').create({
+                    type: "image",
+                    resource: sampleFile.name
+                }, function (err, device) {
+                    if (err) {
+                        console.log("Failed to create content item!")
+                    } else {
+                        res.location("admin");
+                        res.redirect("/admin");
                     }
                 });
             }
         });
     });
 
+
+        /*mongoose.model('Device').create({
+            serial: sn,
+            description: description,
+            tags: taglist
+        }, function (err, device) {
+            if (err) {
+                res.send("There was a problem adding the information to the database.");
+            } else {
+                //Blob has been created
+                console.log('POST creating new device: ' + device);
+                res.format({
+                    //HTML response will set the location and redirect back to the home page. You could also create a 'success' page if that's your thing
+                    html: function(){
+                        // If it worked, set the header so the address bar doesn't still say /adduser
+                        res.location("admin");
+                        // And forward to success page
+                        res.redirect("/admin");
+                    },
+                    //JSON response will show the newly created blob
+                    json: function(){
+                        res.json(device);
+                    }
+                });
+            }
+        })*/
+
+/*
 router.route('/new')
     .get(function(req, res, next) {
         //retrieve all blobs from Monogo
@@ -160,5 +263,5 @@ router.route('/new_device')
             }
         })
     });
-
+*/
 module.exports = router;
