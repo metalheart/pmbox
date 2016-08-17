@@ -22,6 +22,33 @@ router.use(methodOverride(function(req, res){
     }
 }));
 
+router.route('/device_list')
+    .get(function(req, res, next) {
+
+        //retrieve all blobs from Monogo
+        mongoose.model('Device').find({})
+            .exec(function (err, devices) {
+                if (err) {
+                    return console.error(err);
+                } else {
+                    //respond to both HTML and JSON. JSON responses require 'Accept: application/json;' in the Request Header
+                    res.format({
+                        //HTML response will render the index.jade file in the views/blobs folder. We are also setting "blobs" to be an accessible variable in our jade view
+                        html: function(){
+                            res.render('admin/index', {
+                                title: 'All my tasks',
+                                "devices" : devices
+                            });
+                        },
+                        //JSON response will show all blobs in JSON format
+                        json: function(){
+                            res.json(devices);
+                        }
+                    });
+                }
+            });
+    });
+
 router.route('/')
     .get(function(req, res, next) {
         /*
@@ -55,6 +82,67 @@ router.route('/')
         });
     });
 
+router.route('/content_list').get( function (req, res, next) {
+    mongoose.model('Content').find({})
+        .exec(function (err, content) {
+            if (err) {
+                return console.error(err);
+            } else {
+                //respond to both HTML and JSON. JSON responses require 'Accept: application/json;' in the Request Header
+                res.format({
+                    json: function () {
+                        res.json(content);
+                    }
+                });
+            }
+        });
+});
+
+router.route('/task_list').get( function (req, res, next) {
+    mongoose.model('TaskSchedule').find({device:req.query.id})
+        .populate('device')
+        .populate('content')
+        .exec(function (err, tasks) {
+            if (err) {
+                return console.error(err);
+            } else {
+                //respond to both HTML and JSON. JSON responses require 'Accept: application/json;' in the Request Header
+                res.format({
+                    json: function () {
+                        res.json(tasks);
+                    }
+                });
+            }
+        });
+});
+
+router.route('/add_task')
+    .post(function(req, res) {
+        // Get values from POST request. These can be done through forms or REST calls. These rely on the "name" attributes for forms
+        var _device = req.body.device;
+        var _date = req.body.date;
+        var _content = req.body.content;
+
+        mongoose.model('TaskSchedule').create({
+            device: _device,
+            date: _date,
+            content: _content,
+            type: "schedule"
+        }, function (err, task) {
+            if (err) {
+                res.send("There was a problem adding the information to the database.");
+            } else {
+                //Blob has been created
+                console.log('POST creating new device: ' + task);
+                res.format({
+                    json: function(){
+                        res.json(task);
+                    }
+                });
+            }
+        })
+    });
+
 router.route('/new_device')
     .post(function(req, res) {
         // Get values from POST request. These can be done through forms or REST calls. These rely on the "name" attributes for forms
@@ -73,14 +161,6 @@ router.route('/new_device')
                 //Blob has been created
                 console.log('POST creating new device: ' + device);
                 res.format({
-                    //HTML response will set the location and redirect back to the home page. You could also create a 'success' page if that's your thing
-                    html: function(){
-                        // If it worked, set the header so the address bar doesn't still say /adduser
-                        res.location("admin");
-                        // And forward to success page
-                        res.redirect("/admin");
-                    },
-                    //JSON response will show the newly created blob
                     json: function(){
                         res.json(device);
                     }
